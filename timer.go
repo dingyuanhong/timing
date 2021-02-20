@@ -131,7 +131,7 @@ func (scheduler *TaskScheduler) run() {
 				continue
 			}
 			runTime := task.GetRunTime()
-			if runTime-now.UnixNano() < 0 {
+			if runTime-now.UnixNano() <= 0 {
 				if task.GetSpacing() > 0 {
 					task.SetRuntime(now.UnixNano() + task.GetSpacing())
 
@@ -139,6 +139,7 @@ func (scheduler *TaskScheduler) run() {
 					go task.GetJob().Run()
 					continue
 				} else {
+					scheduler.deleteTask(task.GetUuid())
 					task.SetStatus(1)
 					go task.GetJob().Run()
 					continue
@@ -159,14 +160,6 @@ func (scheduler *TaskScheduler) run() {
 			select {
 			//if time has expired do task and shift key if is task list
 			case <-timer.C:
-				if task != nil {
-					if task.GetSpacing() <= 0 {
-						scheduler.deleteTask(task.GetUuid())
-					}
-
-					task.SetStatus(1)
-					go task.GetJob().Run()
-				}
 				timer.Stop()
 				//if add task
 			case t1 := <-scheduler.add:

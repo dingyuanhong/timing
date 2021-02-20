@@ -167,21 +167,24 @@ func Test_DoubleJob(t *testing.T) {
 
 	cron := NewScheduler()
 	cron.Start()
-	f := func() {
-		fmt.Println("hello")
+	f1 := func() {
+		fmt.Println("hello 1")
+	}
+	f2 := func() {
+		fmt.Println("hello 2")
 	}
 
 	cron.AddTask(&Task{
-		Job:     GetJob(f),
+		Job:     GetJob(f1),
 		RunTime: time.Now().UnixNano(),
 		Number:  1,
-		Uuid:    "22222",
+		Uuid:    "222223",
 	})
 	cron.AddTask(&Task{
-		Job:     GetJob(f),
+		Job:     GetJob(f2),
 		RunTime: time.Now().Add(time.Duration(5) * time.Second).UnixNano(),
 		Number:  1,
-		Uuid:    "22222",
+		Uuid:    "222222",
 	})
 
 	timer := time.NewTimer(10 * time.Second)
