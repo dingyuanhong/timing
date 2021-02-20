@@ -121,7 +121,7 @@ func (scheduler *TaskScheduler) run() {
 	for {
 		now := time.Now()
 		task := scheduler.GetTask()
-		var d time.Duration = time.Duration(1) * time.Millisecond
+		var d time.Duration = time.Duration(10) * time.Millisecond
 		if task != nil {
 			task.GetJob().SetTask(task)
 			endTime := task.GetEndTime()
@@ -148,11 +148,13 @@ func (scheduler *TaskScheduler) run() {
 				sec := runTime / int64(time.Second)
 				nsec := runTime % int64(time.Second)
 
-				d = time.Unix(sec, nsec).Sub(now)
+				ds := time.Unix(sec, nsec).Sub(now)
+				if d.Milliseconds() > ds.Milliseconds() {
+					d = ds
+				}
 			}
 		}
 
-		// fmt.Println(d)
 		timer := time.NewTimer(d)
 
 		//catch a chan and do something
