@@ -2,15 +2,12 @@ package timer
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-func (task *Task) RunJob() {
-	task.GetJob().Run()
-}
-
-func (task *Task) GetJob() *taskJob {
+func (task *Task) GetJob() *TaskJob {
 	return task.Job
 }
 
@@ -34,7 +31,7 @@ func (task *Task) GetRunNumber() int {
 	return task.Number
 }
 
-func (task *Task) SetJob(job *taskJob) TaskSetInterface {
+func (task *Task) SetJob(job *TaskJob) TaskSetInterface {
 	task.Job = job
 	return task
 }
@@ -77,24 +74,21 @@ func (task *Task) GetStatus() int {
 	return task.Status
 }
 
-func GetJob(f func()) *taskJob {
-	return getJob(f)
-}
 //get a new Job
-func getJob(f func()) *taskJob {
-	return &taskJob{
+func GetJob(f func()) *TaskJob {
+	return &TaskJob{
 		Fn:      f,
 		stop:    make(chan bool, 1),
 		err:     make(chan error, 1),
 		done:    make(chan bool, 1),
-		replies: make(map[string]func(reply Reply)),
+		replies: make(map[string]func(job *TaskJob, reply Reply)),
 	}
 }
 
 //get task with func
 func getTaskWithFunc(unixTime int64, f func()) *Task {
 	return &Task{
-		Job:     getJob(f),
+		Job:     GetJob(f),
 		RunTime: unixTime,
 		Uuid:    uuid.New().String(),
 	}
@@ -103,7 +97,7 @@ func getTaskWithFunc(unixTime int64, f func()) *Task {
 //get task with func and spacing
 func getTaskWithFuncSpacingNumber(spacing int64, number int, f func()) *Task {
 	return &Task{
-		Job:     getJob(f),
+		Job:     GetJob(f),
 		RunTime: time.Now().UnixNano() + spacing,
 		Spacing: spacing,
 		Number:  number,
@@ -115,7 +109,7 @@ func getTaskWithFuncSpacingNumber(spacing int64, number int, f func()) *Task {
 //get task with spacing
 func getTaskWithFuncSpacing(spacing int64, endTime int64, f func()) *Task {
 	return &Task{
-		Job:     getJob(f),
+		Job:     GetJob(f),
 		RunTime: time.Now().UnixNano() + spacing,
 		Spacing: spacing,
 		EndTime: endTime,

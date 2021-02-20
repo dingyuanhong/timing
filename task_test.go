@@ -9,6 +9,7 @@ import (
 )
 
 func TestTime(t *testing.T) {
+	fmt.Println("TestTime")
 	startTime := "2019-08-11 21:30:01"
 	endTime := "2019-08-11 21:45:00"
 	cal := "2019-08-12 21:30:07"
@@ -30,7 +31,8 @@ func TestTime(t *testing.T) {
 
 //test add Func
 func Test_AddFunc(t *testing.T) {
-	cron := GetTaskScheduler()
+	fmt.Println("Test_AddFunc")
+	cron := NewScheduler()
 
 	go cron.Start()
 
@@ -54,11 +56,51 @@ func Test_AddFunc(t *testing.T) {
 		}
 		break
 	}
+	cron.Stop()
+}
+
+//test add Task and timing add Task
+func Test_AddTask(t *testing.T) {
+	fmt.Println("Test_AddTask")
+	cron := NewScheduler()
+	go cron.Start()
+
+	cron.AddTask(&Task{
+		Job: GetJob(func() {
+			fmt.Println("hello cron")
+		}),
+		RunTime: time.Now().UnixNano() + int64(time.Second*2),
+	})
+
+	cron.AddTask(&Task{
+		Job: GetJob(func() {
+			fmt.Println("hello cron1")
+		}),
+		RunTime: time.Now().UnixNano() + int64(time.Second*3),
+	})
+
+	cron.AddTask(&Task{
+		Job: GetJob(func() {
+			fmt.Println("hello cron2")
+		}),
+		RunTime: time.Now().UnixNano() + +int64(time.Second*4),
+	})
+
+	timer := time.NewTimer(10 * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			fmt.Println("over")
+		}
+		break
+	}
+	cron.Stop()
 }
 
 //test add space task func
 func Test_AddFuncSpace(t *testing.T) {
-	cron := GetTaskScheduler()
+	fmt.Println("Test_AddFuncSpace")
+	cron := NewScheduler()
 	log.SetOutput(os.Stdout)
 	go cron.Start()
 
@@ -75,8 +117,8 @@ func Test_AddFuncSpace(t *testing.T) {
 	})
 
 	cron.AddFuncSpaceNumber(int64(time.Second*1), 10, func() {
-        fmt.Println("number 10")
-    })
+		fmt.Println("number 10")
+	})
 	timer := time.NewTimer(11 * time.Second)
 	for {
 		select {
@@ -85,58 +127,24 @@ func Test_AddFuncSpace(t *testing.T) {
 		}
 		break
 	}
-}
-
-//test add Task and timing add Task
-func Test_AddTask(t *testing.T) {
-	cron := GetTaskScheduler()
-	go cron.Start()
-
-	cron.AddTask(&Task{
-		Job: getJob(func() {
-			fmt.Println("hello cron")
-		}),
-		RunTime: time.Now().UnixNano() + int64(time.Second*2),
-	})
-
-	cron.AddTask(&Task{
-		Job: getJob(func() {
-			fmt.Println("hello cron1")
-		}),
-		RunTime: time.Now().UnixNano() + int64(time.Second*3),
-	})
-
-	cron.AddTask(&Task{
-		Job: getJob(func() {
-			fmt.Println("hello cron2")
-		}),
-		RunTime: time.Now().UnixNano() + +int64(time.Second*4),
-	})
-
-	timer := time.NewTimer(10 * time.Second)
-	for {
-		select {
-		case <-timer.C:
-			fmt.Println("over")
-		}
-		break
-	}
+	cron.Stop()
 }
 
 func Test_JobStartEvent(t *testing.T) {
-	cron := GetTaskScheduler()
+	fmt.Println("Test_JobStartEvent")
+	cron := NewScheduler()
 	cron.Start()
 	f := func() {
 		fmt.Println("hello")
 	}
 	t1 := &Task{
-		Job:     getJob(f),
+		Job:     GetJob(f),
 		RunTime: time.Now().UnixNano() + int64(time.Second)*1,
 		Spacing: int64(3 * time.Second),
 		EndTime: time.Now().UnixNano() + int64(time.Second*20),
 		Uuid:    "123",
 	}
-	f1 := func(reply Reply) {
+	f1 := func(j *TaskJob, reply Reply) {
 		fmt.Println(reply)
 		fmt.Println("It's reply")
 	}
@@ -151,4 +159,38 @@ func Test_JobStartEvent(t *testing.T) {
 		}
 		break
 	}
+	cron.Stop()
+}
+
+func Test_DoubleJob(t *testing.T) {
+	fmt.Println("Test_DoubleJob")
+
+	cron := NewScheduler()
+	cron.Start()
+	f := func() {
+		fmt.Println("hello")
+	}
+
+	cron.AddTask(&Task{
+		Job:     GetJob(f),
+		RunTime: time.Now().UnixNano(),
+		Number:  1,
+		Uuid:    "22222",
+	})
+	cron.AddTask(&Task{
+		Job:     GetJob(f),
+		RunTime: time.Now().Add(time.Duration(5) * time.Second).UnixNano(),
+		Number:  1,
+		Uuid:    "22222",
+	})
+
+	timer := time.NewTimer(10 * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			fmt.Println("over")
+		}
+		break
+	}
+	cron.Stop()
 }

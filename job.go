@@ -1,47 +1,53 @@
 package timer
 
 import (
-    "github.com/pkg/errors"
-    "runtime"
-    "time"
+	"time"
+
+	"github.com/pkg/errors"
 )
 
 //default Job
-type taskJob struct {
+type TaskJob struct {
 	Fn      func()
 	err     chan error
 	done    chan bool
 	stop    chan bool
-	replies map[string]func(reply Reply)
+	replies map[string]func(job *TaskJob, reply Reply)
 	Task    TaskInterface
+	errorno error
 }
 
-func (j *taskJob) GetTask() TaskInterface {
+func (j *TaskJob) GetTask() TaskInterface {
 	return j.Task
 }
 
-func (j *taskJob) SetTask(Task TaskInterface) {
+func (j *TaskJob) SetTask(Task TaskInterface) {
 	j.Task = Task
 }
 
-func (j *taskJob) OnStart(f func(reply Reply)) {
+func (j *TaskJob) OnStart(f func(job *TaskJob, reply Reply)) {
 	j.replies["start"] = f
 }
 
-func (j *taskJob) OnStop(f func(reply Reply)) {
+func (j *TaskJob) OnStop(f func(job *TaskJob, reply Reply)) {
 	j.replies["stop"] = f
 }
 
-func (j *taskJob) OnFinish(f func(reply Reply)) {
+func (j *TaskJob) OnFinish(f func(job *TaskJob, reply Reply)) {
 	j.replies["finish"] = f
 }
 
-func (j *taskJob) OnError(f func(reply Reply)) {
+func (j *TaskJob) OnError(f func(job *TaskJob, reply Reply)) {
 	j.replies["error"] = f
 }
 
-func (j *taskJob) run() {
+func (j *TaskJob) Finish() {
+	if f, ok := j.replies["finish"]; ok {
+		f(j, Reply{})
+	}
+}
 
+func (j *TaskJob) run() {
 	isPanic := false
 	defer func() {
 		if x := recover(); x != nil {
@@ -60,14 +66,14 @@ func (j *taskJob) run() {
 	j.Fn()
 }
 
-func (j *taskJob) Stop() {
+func (j *TaskJob) Stop() {
 	j.stop <- true
 }
 
 //run job and catch error
-func (j *taskJob) Run() {
+func (j *TaskJob) Run() {
 	if f, ok := j.replies["start"]; ok {
-		f(Reply{})
+		f(j, Reply{})
 	}
 
 	go j.run()
@@ -80,14 +86,11 @@ func (j *taskJob) Run() {
 					Msg:  e.Error(),
 					Err:  e,
 				}
-				f(reply)
+				f(j, reply)
 			}
+			j.errorno = e
 			return
 		case <-j.done:
-			if f, ok := j.replies["finish"]; ok {
-				f(successResult)
-			}
-
 			task := j.GetTask()
 			loop := false
 			now := time.Now().UnixNano()
@@ -102,25 +105,26 @@ func (j *taskJob) Run() {
 				spacing := task.GetSpacing()
 				if spacing > 0 {
 					//must use now time
-					//task.SetRuntime(task.GetRunTime() + task.GetSpacing())
 					task.SetRuntime(now + spacing)
-					TS.addTaskChannel(task)
+					task.SetStatus(0)
 				}
-			}else {
-                j.close(false)
-            }
+			} else {
+				j.close(false)
+				j.Finish()
+			}
 			return
 		case <-j.stop:
-            j.close(true)
+			j.close(true)
+			if f, ok := j.replies["stop"]; ok {
+				f(j, Reply{})
+			}
+			return
 		}
 	}
 }
 
-func (j *taskJob) close(exit bool) {
+func (j *TaskJob) close(exit bool) {
 	close(j.done)
 	close(j.err)
 	close(j.stop)
-	if exit {
-        runtime.Goexit()
-    }
 }
